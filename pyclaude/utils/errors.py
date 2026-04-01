@@ -1,5 +1,7 @@
 """Error classes and utilities."""
 
+from typing import Optional
+
 
 class ClaudeError(Exception):
     """Base error class for Claude Code."""
@@ -38,3 +40,32 @@ class ConfigParseError(ClaudeError):
         self.name = 'ConfigParseError'
         self.file_path = file_path
         self.default_config = default_config
+
+
+class ShellError(ClaudeError):
+    """Error for shell command failures."""
+
+    def __init__(self, message: str, code: Optional[int] = None, stderr: Optional[str] = None):
+        super().__init__(message)
+        self.name = 'ShellError'
+        self.code = code
+        self.stderr = stderr
+
+
+def is_enoent(e: Exception) -> bool:
+    """Check if error is ENOENT (file not found)."""
+    if hasattr(e, 'errno'):
+        import errno
+        return e.errno == errno.ENOENT
+    return False
+
+
+__all__ = [
+    'ClaudeError',
+    'MalformedCommandError',
+    'AbortError',
+    'ConfigParseError',
+    'ShellError',
+    'is_abort_error',
+    'is_enoent',
+]
