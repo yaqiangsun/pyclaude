@@ -14,6 +14,8 @@ from .use_command_queue import use_command_queue
 from .use_settings import use_settings
 from .use_elapsed_time import use_elapsed_time, format_duration
 from .use_input_buffer import use_input_buffer
+from .use_clipboard_image_hint import check_clipboard_and_notify
+from .use_diff_data import DiffFile, DiffData, use_diff_data
 
 __all__ = [
     "BlinkState",
@@ -29,4 +31,8 @@ __all__ = [
     "use_elapsed_time",
     "format_duration",
     "use_input_buffer",
+    "check_clipboard_and_notify",
+    "DiffFile",
+    "DiffData",
+    "use_diff_data",
 ]
