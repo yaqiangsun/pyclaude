@@ -69,28 +69,44 @@ async def fetch_system_prompt_parts(
     append_system_prompt: str = None,
 ) -> dict:
     """Fetch system prompt parts for the API."""
-    # Simplified implementation
-    from ..context import get_system_prompt, get_user_context, get_system_context
+    # Build default system prompt
+    default_prompt = _build_default_system_prompt(tools, main_loop_model)
 
-    if custom_system_prompt is not None:
-        default_system_prompt = []
-        system_context = {}
-    else:
-        default_system_prompt = await get_system_prompt(
-            tools,
-            main_loop_model,
-            additional_working_directories or [],
-            mcp_clients or [],
-        )
-        system_context = await get_system_context()
+    # Add custom prompts
+    if custom_system_prompt:
+        default_prompt = custom_system_prompt + "\n\n" + default_prompt
 
-    user_context = await get_user_context()
+    if append_system_prompt:
+        default_prompt = default_prompt + "\n\n" + append_system_prompt
 
     return {
-        'default_system_prompt': default_system_prompt,
-        'user_context': user_context,
-        'system_context': system_context,
+        'default_system_prompt': default_prompt,
+        'user_context': '',
+        'system_context': {},
     }
+
+
+def _build_default_system_prompt(tools: list, model: str) -> str:
+    """Build the default system prompt."""
+    tool_descriptions = []
+    for tool in tools:
+        if hasattr(tool, 'name') and hasattr(tool, 'description'):
+            tool_descriptions.append(f"- {tool.name}: {tool.description}")
+
+    tools_section = ""
+    if tool_descriptions:
+        tools_section = "\n\n## Available Tools\n" + "\n".join(tool_descriptions)
+
+    return f"""You are Claude Code, an AI programming assistant.
+
+You help users write, edit, and understand code. When the user asks you to make changes, you should:
+- Make minimal changes that address the user's request
+- Prefer concrete code changes over long explanations
+- Consider security implications
+- Think about edge cases{tools_section}
+
+You have access to various tools to interact with the filesystem and run commands.
+"""
 
 
 __all__ = [

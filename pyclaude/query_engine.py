@@ -176,7 +176,7 @@ class QueryEngine:
         system_context = prompt_parts.get('system_context', {})
 
         # Build the query and execute
-        from .query import query
+        from .query import query  # noqa: F401
 
         async for message in query(
             prompt=prompt,
