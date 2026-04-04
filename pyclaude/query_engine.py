@@ -176,7 +176,8 @@ class QueryEngine:
         system_context = prompt_parts.get('system_context', {})
 
         # Build the query and execute
-        from .query import query  # noqa: F401
+        # Import query function from query_impl module
+        from pyclaude.query_impl import query
 
         async for message in query(
             prompt=prompt,
