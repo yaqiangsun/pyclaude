@@ -26,19 +26,28 @@ def get_api_key() -> Optional[str]:
 
 @click.command()
 @click.argument("prompt", required=False)
-@click.option("--model", "-m", default="claude-sonnet-4-20250514", help="Model to use")
+@click.option("--model", "-m", default=None, help="Model to use (default: from settings or claude-sonnet-4-20250514)")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @click.option("--max-turns", "-n", type=int, help="Maximum number of turns")
 @click.option("--repl", "-i", is_flag=True, help="Start REPL mode")
 def main(
     prompt: Optional[str],
-    model: str,
+    model: Optional[str],
     verbose: bool,
     max_turns: Optional[int],
     repl: bool,
 ) -> None:
     """Claude Code - AI coding assistant"""
     setup_logging(verbose)
+
+    # Initialize bootstrap first to set up working directory for settings
+    from . import bootstrap
+    bootstrap.initialize_state(os.getcwd())
+
+    # Get model from settings if not specified via CLI
+    if model is None:
+        from .utils.model import get_main_loop_model
+        model = get_main_loop_model()
 
     if repl:
         click.echo("Starting REPL mode...")

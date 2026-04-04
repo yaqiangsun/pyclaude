@@ -178,17 +178,16 @@ async def _call_api(
     verbose: bool,
 ) -> dict:
     """Call the Anthropic API."""
-    # This is a placeholder - the actual implementation would use httpx
-    # to call the Anthropic API
     from .services.api import call_anthropic_api
 
-    api_messages = [
-        {'role': 'system', 'content': system_prompt + '\n\n' + user_context}
-    ]
-    api_messages.extend(messages)
+    # Combine system_prompt and user_context for system parameter
+    combined_system = system_prompt
+    if user_context:
+        combined_system += "\n\n" + user_context
 
     response = await call_anthropic_api(
-        messages=api_messages,
+        messages=messages,
+        system_prompt=combined_system,
         tools=tools,
         thinking_config=thinking_config,
         json_schema=json_schema,

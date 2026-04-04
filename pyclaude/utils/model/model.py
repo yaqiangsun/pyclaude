@@ -5,6 +5,8 @@ Model utilities for Claude Code.
 import os
 from typing import Optional
 
+from ..settings import get_setting_model
+
 
 # Default models
 DEFAULT_MODEL = 'claude-sonnet-4-20250514'
@@ -34,8 +36,17 @@ MODEL_CONTEXT_WINDOWS = {
 
 
 def get_main_loop_model() -> str:
-    """Get the main loop model from environment or default."""
-    return os.environ.get('CLAUDE_MODEL', DEFAULT_MODEL)
+    """Get the main loop model from settings, environment, or default."""
+    # Priority: settings > environment variable > default
+    settings_model = get_setting_model()
+    if settings_model:
+        return settings_model
+
+    env_model = os.environ.get('CLAUDE_MODEL')
+    if env_model:
+        return env_model
+
+    return DEFAULT_MODEL
 
 
 def parse_user_specified_model(model: str) -> str:

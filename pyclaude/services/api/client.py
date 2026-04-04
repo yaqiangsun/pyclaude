@@ -5,6 +5,8 @@ from typing import Any, Optional
 
 import httpx
 
+from ...utils.settings import get_setting_base_url, get_setting_api_key
+
 
 class AnthropicClient:
     """Anthropic API client."""
@@ -16,8 +18,21 @@ class AnthropicClient:
         max_retries: int = 3,
         timeout: int = 600000,
     ):
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-        self.base_url = base_url
+        # Priority: explicit param > settings > environment variable
+        settings_api_key = get_setting_api_key()
+        self.api_key = api_key or settings_api_key or os.environ.get("ANTHROPIC_API_KEY", "")
+
+        # Get base_url from settings first, then environment, then default
+        settings_base_url = get_setting_base_url()
+        env_base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+        # Use settings base_url if provided, otherwise use env or default
+        if settings_base_url:
+            self.base_url = settings_base_url
+        elif env_base_url:
+            self.base_url = env_base_url
+        else:
+            self.base_url = base_url
+
         self.max_retries = max_retries
         self.timeout = timeout
         self._client: Optional[httpx.AsyncClient] = None
@@ -38,6 +53,11 @@ class AnthropicClient:
         """Get request headers."""
         from ...utils.auth import get_anthropic_api_key, is_claude_ai_subscriber
         from ...utils.http import get_user_agent
+        import os
+
+        # Check if using custom endpoint
+        custom_base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+        is_custom = bool(custom_base_url and "anthropic.com" not in custom_base_url)
 
         headers = {
             "x-app": "cli",
@@ -46,9 +66,12 @@ class AnthropicClient:
             "anthropic-version": "2023-06-01",
         }
 
-        if not is_claude_ai_subscriber():
-            api_key = self.api_key or get_anthropic_api_key()
-            if api_key:
+        api_key = self.api_key or os.environ.get("ANTHROPIC_AUTH_TOKEN", "") or get_anthropic_api_key()
+        if api_key:
+            # Use Authorization header for custom endpoints, x-api-key for anthropic
+            if is_custom:
+                headers["Authorization"] = f"Bearer {api_key}"
+            else:
                 headers["x-api-key"] = api_key
 
         return headers
@@ -89,11 +112,10 @@ class AnthropicClient:
             if value is not None:
                 payload[key] = value
 
-        # Select endpoint
-        endpoint = "/v1/messages"
-        if stream:
-            endpoint = "/v1/messages"
+        # Select endpoint - check for common API patterns
+        endpoint = os.environ.get("ANTHROPIC_API_PATH", "/v1/messages")
 
+        print(f"[DEBUG] API endpoint: {self.base_url}{endpoint}")
         response = await client.post(endpoint, json=payload, headers=headers)
         response.raise_for_status()
         return response.json()
@@ -151,12 +173,27 @@ async def get_anthropic_client(
     api_key: Optional[str] = None,
     max_retries: int = 3,
     model: Optional[str] = None,
+    base_url: Optional[str] = None,
 ) -> AnthropicClient:
     """Get or create the Anthropic client."""
     global _client
+
+    # Get settings values
+    settings_base_url = get_setting_base_url()
+    env_base_url = os.environ.get("ANTHROPIC_BASE_URL", "")
+
+    # Priority: explicit param > settings > environment > default
+    final_base_url = base_url or settings_base_url or env_base_url or "https://api.anthropic.com"
+
+    # Priority: explicit param > settings > environment
+    settings_api_key = get_setting_api_key()
+    env_api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN", "")
+    final_api_key = api_key or settings_api_key or env_api_key
+
     if _client is None:
         _client = AnthropicClient(
-            api_key=api_key,
+            api_key=final_api_key,
+            base_url=final_base_url,
             max_retries=max_retries,
         )
     return _client

@@ -1,4 +1,4 @@
-"""Settings management - handles .claude/settings.json and config.json."""
+"""Settings management - handles .claude/settings.json and .claude.json."""
 import os
 import json
 from typing import Any, Dict, Optional
@@ -43,6 +43,13 @@ def save_json_file(file_path: str, data: Dict[str, Any]) -> bool:
         return True
     except IOError:
         return False
+
+
+# Settings keys for model and API configuration
+SETTING_MODEL = "model"
+SETTING_BASE_URL = "baseUrl"
+SETTING_API_KEY = "apiKey"
+SETTING_API_URL = "apiUrl"
 
 
 class Settings:
@@ -131,6 +138,60 @@ class Settings:
         result.update(self.load_project_settings())
         return result
 
+    def get_model(self) -> Optional[str]:
+        """Get model from settings (checks project, claude.json, global in order)."""
+        # Check project settings first
+        project = self.load_project_settings()
+        if SETTING_MODEL in project:
+            return project[SETTING_MODEL]
+
+        # Then check .claude.json
+        claude_json = self.load_claude_json()
+        if SETTING_MODEL in claude_json:
+            return claude_json[SETTING_MODEL]
+
+        # Finally check global settings
+        global_settings = self.load_global_settings()
+        return global_settings.get(SETTING_MODEL)
+
+    def get_base_url(self) -> Optional[str]:
+        """Get base URL from settings (checks project, claude.json, global in order)."""
+        # Check project settings first
+        project = self.load_project_settings()
+        if SETTING_BASE_URL in project:
+            return project[SETTING_BASE_URL]
+
+        # Then check .claude.json
+        claude_json = self.load_claude_json()
+        if SETTING_BASE_URL in claude_json:
+            return claude_json[SETTING_BASE_URL]
+
+        # Also check apiUrl alias
+        if SETTING_API_URL in project:
+            return project[SETTING_API_URL]
+        if SETTING_API_URL in claude_json:
+            return claude_json[SETTING_API_URL]
+
+        # Finally check global settings
+        global_settings = self.load_global_settings()
+        return global_settings.get(SETTING_BASE_URL) or global_settings.get(SETTING_API_URL)
+
+    def get_api_key(self) -> Optional[str]:
+        """Get API key from settings (checks project, claude.json, global in order)."""
+        # Check project settings first
+        project = self.load_project_settings()
+        if SETTING_API_KEY in project:
+            return project[SETTING_API_KEY]
+
+        # Then check .claude.json
+        claude_json = self.load_claude_json()
+        if SETTING_API_KEY in claude_json:
+            return claude_json[SETTING_API_KEY]
+
+        # Finally check global settings
+        global_settings = self.load_global_settings()
+        return global_settings.get(SETTING_API_KEY)
+
 
 # Global settings instance
 _settings: Optional[Settings] = None
@@ -155,11 +216,29 @@ def set_setting(key: str, value: Any, scope: str = "project") -> bool:
     return get_settings().set(key, value, scope)
 
 
+def get_setting_model() -> Optional[str]:
+    """Get model from settings."""
+    return get_settings().get_model()
+
+
+def get_setting_base_url() -> Optional[str]:
+    """Get base URL from settings."""
+    return get_settings().get_base_url()
+
+
+def get_setting_api_key() -> Optional[str]:
+    """Get API key from settings."""
+    return get_settings().get_api_key()
+
+
 __all__ = [
     "Settings",
     "get_settings",
     "get_setting",
     "set_setting",
+    "get_setting_model",
+    "get_setting_base_url",
+    "get_setting_api_key",
     "get_claude_settings_path",
     "get_claude_config_path",
     "get_global_settings_path",
