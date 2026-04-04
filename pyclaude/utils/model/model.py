@@ -38,13 +38,25 @@ MODEL_CONTEXT_WINDOWS = {
 def get_main_loop_model() -> str:
     """Get the main loop model from settings, environment, or default."""
     # Priority: settings > environment variable > default
+
+    # First check settings
     settings_model = get_setting_model()
     if settings_model:
         return settings_model
 
+    # Check common environment variables (matching src behavior)
+    # CLAUDE_MODEL is the primary env var
     env_model = os.environ.get('CLAUDE_MODEL')
     if env_model:
         return env_model
+
+    # Also check ANTHROPIC_DEFAULT_*_MODEL variables
+    # These are used by 3rd party providers
+    for key in ['ANTHROPIC_DEFAULT_SONNET_MODEL', 'ANTHROPIC_DEFAULT_OPUS_MODEL',
+                'ANTHROPIC_DEFAULT_HAIKU_MODEL', 'ANTHROPIC_MODEL']:
+        env_model = os.environ.get(key)
+        if env_model:
+            return env_model
 
     return DEFAULT_MODEL
 

@@ -31,6 +31,7 @@ async def query(
     abort_controller: Any = None,
     orphaned_permission: Optional[dict] = None,
     read_file_state: Optional[dict] = None,
+    model: Optional[str] = None,
 ) -> AsyncGenerator[dict, None]:
     """
     Main query loop - handles message building, tool execution, and API calls.
@@ -98,6 +99,7 @@ async def query(
             thinking_config=thinking_config,
             json_schema=json_schema,
             verbose=verbose,
+            model=model,
         )
 
         # Yield response message
@@ -176,6 +178,7 @@ async def _call_api(
     thinking_config: dict,
     json_schema: Optional[dict],
     verbose: bool,
+    model: Optional[str] = None,
 ) -> dict:
     """Call the Anthropic API."""
     from .services.api import call_anthropic_api
@@ -191,6 +194,7 @@ async def _call_api(
         tools=tools,
         thinking_config=thinking_config,
         json_schema=json_schema,
+        model=model,
     )
 
     return response

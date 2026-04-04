@@ -116,6 +116,9 @@ class AnthropicClient:
         endpoint = os.environ.get("ANTHROPIC_API_PATH", "/v1/messages")
 
         print(f"[DEBUG] API endpoint: {self.base_url}{endpoint}")
+        print(f"[DEBUG] Model: {model}")
+        print(f"[DEBUG] Headers: {headers}")
+        print(f"[DEBUG] Payload: {payload}")
         response = await client.post(endpoint, json=payload, headers=headers)
         response.raise_for_status()
         return response.json()
