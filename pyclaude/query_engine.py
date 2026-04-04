@@ -204,6 +204,7 @@ class QueryEngine:
             abort_controller=self.abort_controller,
             orphaned_permission=orphaned_permission,
             read_file_state=self.read_file_state,
+            model=initial_main_loop_model,
         ):
             yield message
 
