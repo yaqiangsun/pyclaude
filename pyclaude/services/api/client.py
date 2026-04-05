@@ -117,8 +117,7 @@ class AnthropicClient:
 
         # print(f"[DEBUG] API endpoint: {self.base_url}{endpoint}")
         # print(f"[DEBUG] Model: {model}")
-        # print(f"[DEBUG] Headers: {headers}")
-        # print(f"[DEBUG] Payload: {payload}")
+        # print(f"[DEBUG] Payload tools: {payload.get('tools')}")
         # Debug: print messages structure
         # print(f"[DEBUG] messages count: {len(messages)}")
         # for i, msg in enumerate(messages):

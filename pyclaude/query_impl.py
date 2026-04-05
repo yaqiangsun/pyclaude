@@ -158,13 +158,14 @@ async def query(
                 abort_controller=abort_controller,
             )
 
-            # Yield tool result
+            # Yield tool result - handle both content and stdout formats
+            tool_content = result.get('content') or result.get('stdout', '')
             tool_result = {
                 'type': 'tool_result',
                 'role': 'user',  # Required by API
                 'tool_use_id': tool_use['id'],
-                'content': result.get('content', ''),
-                'is_error': result.get('is_error', False),
+                'content': tool_content,
+                'is_error': result.get('is_error', False) or not result.get('success', True),
             }
             yield {'type': 'tool_result', 'result': tool_result}
 
