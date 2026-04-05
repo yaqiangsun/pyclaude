@@ -131,9 +131,6 @@ async def _run_query(
     engine = QueryEngine(config)
 
     # Execute the query and collect results
-    click.echo("")
-
-    # Track if we have output anything (for formatting)
     has_output = False
     tool_call_count = 0
 
@@ -156,6 +153,8 @@ async def _run_query(
             for block in content:
                 if block.get('type') == 'text':
                     text = block.get('text', '')
+                    # Remove excessive empty lines
+                    text = '\n'.join(line for line in text.split('\n') if line.strip())
                     if text.strip():
                         click.echo(text)
                         has_output = True
@@ -183,9 +182,6 @@ async def _run_query(
         elif msg_type == 'error':
             click.echo(f"Error: {message.get('error')}", err=True)
             has_output = True
-
-    if not has_output:
-        click.echo("(no response)")
 
 
 def _format_tool_input(tool_name: str, tool_input: dict) -> str:
