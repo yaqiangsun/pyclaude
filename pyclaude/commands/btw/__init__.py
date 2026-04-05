@@ -1,5 +1,9 @@
-"""Btw command package."""
+"""BTW command - by the way."""
+from typing import Any, Dict
 
-from .btw import CONFIG, call, execute
+async def execute(args: str, context: Dict[str, Any]) -> Dict[str, str]:
+    return {'type': 'text', 'value': 'BTW: ' + args}
 
-__all__ = ['CONFIG', 'call', 'execute']
+call = execute
+CONFIG = {'type': 'local', 'name': 'btw', 'description': 'By the way'}
+__all__ = ['call', 'execute', 'CONFIG']

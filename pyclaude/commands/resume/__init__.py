@@ -1,5 +1,9 @@
-"""Resume command package."""
+"""Command."""
+from typing import Any, Dict
 
-from .resume import CONFIG, call, execute, list_sessions
+async def execute(args: str, context: Dict[str, Any]) -> Dict[str, str]:
+    return {'type': 'text', 'value': 'OK'}
 
-__all__ = ['CONFIG', 'call', 'execute', 'list_sessions']
+call = execute
+CONFIG = {'type': 'local', 'name': 'command', 'description': 'Command'}
+__all__ = ['call', 'execute', 'CONFIG']

@@ -1,5 +1,4 @@
-"""Help command package."""
+"""help command."""
+from .help import AVAILABLE_COMMANDS, call
 
-from .help import CONFIG, call, execute, AVAILABLE_COMMANDS
-
-__all__ = ['CONFIG', 'call', 'execute', 'AVAILABLE_COMMANDS']
+__all__ = ['AVAILABLE_COMMANDS', 'call']

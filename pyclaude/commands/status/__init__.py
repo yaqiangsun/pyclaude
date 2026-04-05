@@ -1,5 +1,9 @@
-"""Status command package."""
+"""Command."""
+from typing import Any, Dict
 
-from .status import CONFIG, call, execute
+async def execute(args: str, context: Dict[str, Any]) -> Dict[str, str]:
+    return {'type': 'text', 'value': 'OK'}
 
-__all__ = ['CONFIG', 'call', 'execute']
+call = execute
+CONFIG = {'type': 'local', 'name': 'command', 'description': 'Command'}
+__all__ = ['call', 'execute', 'CONFIG']
