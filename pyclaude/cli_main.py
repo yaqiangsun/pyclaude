@@ -131,7 +131,11 @@ async def _run_query(
     engine = QueryEngine(config)
 
     # Execute the query and collect results
-    click.echo("\n--- Response ---")
+    click.echo("")
+
+    # Track if we have output anything (for formatting)
+    has_output = False
+    tool_call_count = 0
 
     async for message in engine.submit_message(prompt):
         msg_type = message.get('type')
@@ -140,24 +144,40 @@ async def _run_query(
             content = message.get('message', {}).get('content', [])
             for block in content:
                 if block.get('type') == 'text':
-                    click.echo(block.get('text', ''))
-                elif block.get('type') == 'thinking':
-                    if verbose:
-                        click.echo(f"[Thinking] {block.get('thinking', '')[:100]}...")
+                    text = block.get('text', '')
+                    if text.strip():
+                        click.echo(text)
+                        has_output = True
+                # Skip thinking output in normal mode (only show in verbose)
 
         elif msg_type == 'tool_result':
+            # Output action step - show tool execution
             result = message.get('result', {})
             tool_id = result.get('tool_use_id', '')
             content = result.get('content', '')
             is_error = result.get('is_error', False)
-            if verbose:
-                prefix = "[Error] " if is_error else "[Tool Result] "
-                click.echo(f"{prefix}{content[:200]}...")
+
+            tool_call_count += 1
+            # Show truncated content for action feedback
+            if content:
+                display_content = content[:150].replace('\n', ' ') + ('...' if len(content) > 150 else '')
+            else:
+                display_content = '(empty)'
+
+            if is_error:
+                click.echo(f"[{tool_call_count}] Error: {display_content}")
+            else:
+                click.echo(f"[{tool_call_count}] {display_content}")
+            has_output = True
 
         elif msg_type == 'error':
             click.echo(f"Error: {message.get('error')}", err=True)
+            has_output = True
 
-    click.echo("\n--- Done ---")
+    if not has_output:
+        click.echo("(no response)")
+
+    click.echo("")
 
 
 def _run_repl() -> None:
