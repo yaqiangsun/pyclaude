@@ -20,8 +20,9 @@ def setup_logging(verbose: bool = False) -> None:
 
 
 def get_api_key() -> Optional[str]:
-    """Get API key from environment."""
-    return os.environ.get('ANTHROPIC_API_KEY')
+    """Get API key from environment or settings."""
+    from pyclaude.utils.auth import get_anthropic_api_key
+    return get_anthropic_api_key()
 
 
 @click.command()
