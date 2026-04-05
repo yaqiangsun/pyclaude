@@ -124,6 +124,14 @@ async def query(
 
         # Execute tools
         for tool_use in tool_uses:
+            # Yield tool call info before execution
+            yield {
+                'type': 'tool_call',
+                'tool_name': tool_use['name'],
+                'tool_input': tool_use['input'],
+                'tool_use_id': tool_use['id'],
+            }
+
             # Check permission
             permission_result = await can_use_tool(
                 tool=tool_use['name'],
