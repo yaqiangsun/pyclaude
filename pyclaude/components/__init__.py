@@ -1,11 +1,11 @@
 """
-Components module - UI components.
-
-Note: The original TypeScript project uses React/Ink for the TUI.
-The Python version uses textual or prompt_toolkit for TUI.
-This directory is kept for structure compatibility but UI components
-are implemented differently.
+Components module - UI components for Claude Code.
 """
 
-# Placeholder - UI components will be implemented using textual
-__all__ = []
+from .app import App
+from .spinner import Spinner
+
+__all__ = [
+    'App',
+    'Spinner',
+]
