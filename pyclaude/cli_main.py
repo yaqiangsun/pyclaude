@@ -216,6 +216,84 @@ def _format_tool_input(tool_name: str, tool_input: dict) -> str:
     click.echo("")
 
 
+async def run_command_async(cmd_func, args, context):
+    """Run a command function in a new event loop."""
+    import asyncio
+    try:
+        # Try to get current loop
+        loop = asyncio.get_running_loop()
+        # We're in an async context, create a task
+        return await cmd_func(args, context)
+    except RuntimeError:
+        # No running loop, we can use asyncio.run
+        return asyncio.run(cmd_func(args, context))
+
+
+def show_welcome_banner() -> None:
+    """Show welcome banner similar to src Claude Code."""
+    # Get version
+    from .constants.product import get_product_version, get_product_name
+    version = get_product_version()
+    product = get_product_name()
+
+    # Welcome banner with ASCII art
+    click.echo(f"╭─── {product} {version} ──────────────────────────────────────────────────────────────────────────────────────────╮")
+    click.echo(f"│                                                    │ Tips for getting started                                    │")
+    click.echo(f"│                    Welcome back!                   │ Run /init to create a CLAUDE.md file with instructions for… │")
+    click.echo(f"│                                                    │ ─────────────────────────────────────────────────────────── │")
+    click.echo(f"│                       ▐▛███▜▌                      │ Recent activity                                             │")
+    click.echo(f"│                      ▝▜█████▛▘                     │ No recent activity                                          │")
+    click.echo(f"│                        ▘▘ ▝▝                       │                                                             │")
+    click.echo(f"│                                                    │                                                             │")
+    click.echo(f" MiniMaxAI/MiniMax-M2.5 with h… · API Usage Billing │                                                             │")
+    import os
+    click.echo(f"            {os.getcwd()}             │                                                             │")
+    click.echo("╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯")
+
+
+def show_command_suggestions(partial: str) -> None:
+    """Show command suggestions for partial command."""
+    from .commands import COMMANDS
+
+    matches = []
+    # Check exact match and prefix match (e.g., plugin -> plugins)
+    for name, info in COMMANDS.items():
+        if name.startswith(partial.lower()) or partial.lower().startswith(name):
+            matches.append((name, info.get('description', '')))
+
+    # Also check if partial matches any alias
+    if not matches:
+        for name, info in COMMANDS.items():
+            for alias in info.get('aliases', []):
+                if alias.startswith(partial.lower()):
+                    matches.append((name, info.get('description', '')))
+                    break
+
+    if matches:
+        click.echo(f"Unknown command: /{partial}")
+        click.echo("")
+        click.echo("Available commands:")
+        # Remove duplicates while preserving order
+        seen = set()
+        for name, desc in matches:
+            if name not in seen:
+                seen.add(name)
+                click.echo(f"  /{name:<15} {desc}")
+    else:
+        # Show all commands that start with the same letter
+        letter = partial[0].lower() if partial else ''
+        if letter:
+            click.echo(f"Commands starting with /{letter}:")
+            for name, info in sorted(COMMANDS.items()):
+                if name.startswith(letter):
+                    click.echo(f"  /{name:<15} {info.get('description', '')}")
+        else:
+            # Show all available commands
+            click.echo("Available commands:")
+            for name, info in sorted(COMMANDS.items()):
+                click.echo(f"  /{name:<15} {info.get('description', '')}")
+
+
 def _run_repl() -> None:
     """Run interactive REPL mode."""
     import asyncio
@@ -242,8 +320,9 @@ def _run_repl() -> None:
         tools = get_all_tools()
         commands = get_all_commands()
 
-        click.echo("PyClaude REPL")
-        click.echo("Type 'exit' to quit, '/compact' to compact conversation")
+        # Show welcome banner similar to src
+        show_welcome_banner()
+
         click.echo("")
 
         # Create query engine config
@@ -300,28 +379,28 @@ def _run_repl() -> None:
 
                         if cmd_info and cmd_info.get('call'):
                             try:
-                                import asyncio
-                                result = asyncio.run(cmd_info['call'](cmd_args, {}))
+                                # Use a new event loop for the command
+                                result = await run_command_async(cmd_info['call'], cmd_args, {})
                                 if result:
                                     result_type = result.get('type')
                                     if result_type == 'text':
                                         click.echo(result.get('value', ''))
                                     elif result_type == 'exit':
-                                        # Exit command
-                                        click.echo(result.get('value', 'Goodbye!'))
-                                        break
+                                        # Don't print here - the loop exit handles it
+                                        # The final "Goodbye!" is printed after the loop
+                                        pass
                                     elif result_type == 'skip':
                                         pass  # Don't display anything
                                     else:
                                         click.echo(str(result))
-                                # Check if result indicates exit
-                                if result.get('exit') or result.get('type') == 'exit':
+                                # Check if result indicates exit - just break, don't print
+                                if result and (result.get('exit') or result.get('type') == 'exit'):
                                     break
                             except Exception as e:
                                 click.echo(f"Error executing /{cmd_name}: {e}", err=True)
                         else:
-                            click.echo(f"Unknown command: /{cmd_name}")
-                            click.echo("Type /help for available commands")
+                            # Show command suggestions
+                            show_command_suggestions(cmd_name)
                         click.echo("")
                         continue
 

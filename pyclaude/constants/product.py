@@ -5,7 +5,7 @@ from typing import Dict
 
 # Product info
 PRODUCT_NAME = 'Claude Code'
-PRODUCT_VERSION = '1.0'
+PRODUCT_VERSION = '0.1.0'
 PRODUCT_URL = 'https://claude.ai/code'
 
 # Edition types
