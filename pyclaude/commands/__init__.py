@@ -131,7 +131,13 @@ if mcp_call:
 if skills_call:
     COMMANDS['skills'] = {'call': skills_call, 'description': 'Manage skills'}
 if plugins_call:
-    COMMANDS['plugins'] = {'call': plugins_call, 'description': 'Manage plugins'}
+    # Get aliases from CONFIG if available
+    aliases = getattr(PLUGINS_CONFIG, 'aliases', ['plugin', 'marketplace'])
+    COMMANDS['plugins'] = {'call': plugins_call, 'description': 'Manage plugins', 'aliases': aliases}
+    # Also register aliases as separate commands pointing to plugins
+    for alias in aliases:
+        if alias != 'plugins':
+            COMMANDS[alias] = {'call': plugins_call, 'description': 'Manage plugins', 'aliases': aliases, 'is_alias': True}
 if theme_call:
     COMMANDS['theme'] = {'call': theme_call, 'description': 'Change theme'}
 if fast_call:
