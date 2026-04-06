@@ -280,9 +280,55 @@ def _run_repl() -> None:
         # Run REPL loop
         while True:
             try:
-                prompt = input("> ")
-                if prompt.lower() in ('exit', 'quit', 'q'):
+                prompt = input("❯ ")
+
+                # Check for slash commands first
+                if prompt.strip().startswith('/'):
+                    from .utils.slash_command_parsing import parse_slash_command
+                    from .commands import COMMANDS
+
+                    parsed = parse_slash_command(prompt)
+                    if parsed:
+                        cmd_name, cmd_args = parsed
+                        # Find command (check aliases too)
+                        cmd_info = None
+                        for name, info in COMMANDS.items():
+                            if name == cmd_name or cmd_name in info.get('aliases', []):
+                                cmd_info = info
+                                cmd_name = name
+                                break
+
+                        if cmd_info and cmd_info.get('call'):
+                            try:
+                                import asyncio
+                                result = asyncio.run(cmd_info['call'](cmd_args, {}))
+                                if result:
+                                    result_type = result.get('type')
+                                    if result_type == 'text':
+                                        click.echo(result.get('value', ''))
+                                    elif result_type == 'exit':
+                                        # Exit command
+                                        click.echo(result.get('value', 'Goodbye!'))
+                                        break
+                                    elif result_type == 'skip':
+                                        pass  # Don't display anything
+                                    else:
+                                        click.echo(str(result))
+                                # Check if result indicates exit
+                                if result.get('exit') or result.get('type') == 'exit':
+                                    break
+                            except Exception as e:
+                                click.echo(f"Error executing /{cmd_name}: {e}", err=True)
+                        else:
+                            click.echo(f"Unknown command: /{cmd_name}")
+                            click.echo("Type /help for available commands")
+                        click.echo("")
+                        continue
+
+                # Handle plain exit/quit
+                if prompt.lower().strip() in ('exit', 'quit', 'q'):
                     break
+
                 if not prompt.strip():
                     continue
 
