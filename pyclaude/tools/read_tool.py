@@ -18,6 +18,24 @@ DESCRIPTION = """- Use this tool to read files from the local filesystem
 MAX_CHARS = 100000
 
 
+@dataclass
+class ReadToolInput:
+    """Input for ReadTool."""
+    file_path: str
+    offset: Optional[int] = None
+    limit: Optional[int] = None
+
+
+@dataclass
+class ReadToolOutput:
+    """Output from ReadTool."""
+    content: str = ""
+    lines: int = 0
+    truncated: bool = False
+    error: str = ""
+    success: bool = True
+
+
 class ReadTool(BaseTool):
     """Tool for reading files."""
 
@@ -104,4 +122,15 @@ class ReadTool(BaseTool):
             }
 
 
-__all__ = ['ReadTool', 'READ_TOOL_NAME', 'DESCRIPTION']
+async def execute_read(
+    input_dict: Dict[str, Any],
+    get_app_state: Callable,
+    set_app_state: Callable,
+    abort_controller: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Execute read operation using ReadTool."""
+    tool = ReadTool()
+    return await tool.execute(input_dict, get_app_state, set_app_state, abort_controller)
+
+
+__all__ = ['ReadTool', 'ReadToolInput', 'ReadToolOutput', 'execute_read', 'READ_TOOL_NAME', 'DESCRIPTION', 'MAX_CHARS']

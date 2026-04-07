@@ -6,7 +6,7 @@ from .bridge_main import BridgeMain, BridgeConfig
 from .repl_bridge import REPLBridge, REPLBridgeConfig
 from .session import Session, SessionManager
 from .types import BridgeMessage, BridgeEvent, BridgeState, BridgeConfig as BridgeConfigType
-from .bridge_config import get_bridge_config, set_bridge_config, get_bridge_url
+from .bridge_config import get_bridge_url
 from .bridge_enabled import is_bridge_enabled, set_bridge_enabled
 from .bridge_debug import bridge_debug, get_debugger
 from .poll_config import PollConfig, get_poll_config, update_poll_config
@@ -39,8 +39,6 @@ __all__ = [
     'BridgeEvent',
     'BridgeState',
     'BridgeConfigType',
-    'get_bridge_config',
-    'set_bridge_config',
     'get_bridge_url',
     'is_bridge_enabled',
     'set_bridge_enabled',

@@ -14,6 +14,7 @@ class BridgeState(str, Enum):
     CONNECTING = 'connecting'
     CONNECTED = 'connected'
     RECONNECTING = 'reconnecting'
+    DISCONNECTED = 'disconnected'
     ERROR = 'error'
 
 
