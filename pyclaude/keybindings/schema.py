@@ -1,5 +1,6 @@
 """Keybinding schema."""
-from typing import Any, TypedDict
+from __future__ import annotations
+from typing import Any, Optional, TypedDict
 
 
 class KeybindingSchema(TypedDict):
@@ -8,7 +9,7 @@ class KeybindingSchema(TypedDict):
     key: str
     action: str
     description: str
-    context: str | None
+    context: Optional[str]
 
 
 __all__ = ['KeybindingSchema']

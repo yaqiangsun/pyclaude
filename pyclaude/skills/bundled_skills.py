@@ -1,5 +1,6 @@
 """Bundled Skills."""
-from typing import Any, Callable
+from __future__ import annotations
+from typing import Any, Callable, Optional
 
 # Bundled skill definition
 class BundledSkillDefinition:
@@ -7,17 +8,17 @@ class BundledSkillDefinition:
         self,
         name: str,
         description: str,
-        allowed_tools: list[str] | None = None,
-        argument_hint: str | None = None,
-        when_to_use: str | None = None,
-        model: str | None = None,
+        allowed_tools: Optional[list[str]] = None,
+        argument_hint: Optional[str] = None,
+        when_to_use: Optional[str] = None,
+        model: Optional[str] = None,
         disable_model_invocation: bool = False,
         user_invocable: bool = True,
-        hooks: list | None = None,
-        context: dict | None = None,
-        agent: dict | None = None,
-        is_enabled: Callable[[], bool] | None = None,
-        get_prompt_for_command: Callable | None = None,
+        hooks: Optional[list] = None,
+        context: Optional[dict] = None,
+        agent: Optional[dict] = None,
+        is_enabled: Optional[Callable[[], bool]] = None,
+        get_prompt_for_command: Optional[Callable] = None,
     ):
         self.name = name
         self.description = description

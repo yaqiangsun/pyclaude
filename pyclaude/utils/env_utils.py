@@ -19,6 +19,75 @@ def get_claude_config_home_dir() -> str:
     return str(Path.home() / ".claude")
 
 
+def get_managed_file_path() -> str:
+    """Get managed file path (for policy settings)."""
+    return os.path.join(os.path.expanduser("~"), ".claude-managed")
+
+
+def normalize_path_for_comparison(path: str) -> str:
+    """Normalize path for comparison (case-insensitive on Windows)."""
+    normalized = os.path.normpath(os.path.normcase(path))
+    # Remove trailing slashes
+    return normalized.rstrip(os.sep + '/')
+
+
+def resolve_stop_boundary(cwd: str) -> str:
+    """Find the git root or the current directory if not in a git repo."""
+    try:
+        import subprocess
+        result = subprocess.run(
+            ['git', 'rev-parse', '--show-toplevel'],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (subprocess.SubprocessError, FileNotFoundError):
+        pass
+    return os.path.abspath(cwd)
+
+
+def get_project_dirs_up_to_home(subdir: str, cwd: str) -> list[str]:
+    """Get project directories up to home.
+
+    Traverses from current directory up to home, finding all .claude/{subdir}
+    directories.
+
+    Args:
+        subdir: Subdirectory name (e.g., 'skills', 'commands', 'rules')
+        cwd: Current working directory
+
+    Returns:
+        List of directories with .claude/{subdir}
+    """
+    from pathlib import Path
+
+    home = os.path.expanduser("~")
+    git_root = resolve_stop_boundary(cwd)
+    current = os.path.abspath(cwd)
+
+    dirs = []
+
+    while True:
+        # Stop if we've reached home
+        if normalize_path_for_comparison(current) == normalize_path_for_comparison(home):
+            break
+
+        claude_subdir = os.path.join(current, '.claude', subdir)
+        if os.path.isdir(claude_subdir):
+            dirs.append(claude_subdir)
+
+        # Move to parent
+        parent = os.path.dirname(current)
+        if parent == current:  # Reached root
+            break
+        current = parent
+
+    return dirs
+
+
 def get_teams_dir() -> str:
     """Get teams directory."""
     return os.path.join(get_claude_config_home_dir(), "teams")
@@ -123,6 +192,7 @@ def get_vertex_region_for_model(model: str = None) -> str:
 
 __all__ = [
     "get_claude_config_home_dir",
+    "get_managed_file_path",
     "get_teams_dir",
     "has_node_option",
     "is_env_truthy",
@@ -134,4 +204,7 @@ __all__ = [
     "should_maintain_project_working_dir",
     "is_running_on_homespace",
     "get_vertex_region_for_model",
+    "normalize_path_for_comparison",
+    "resolve_stop_boundary",
+    "get_project_dirs_up_to_home",
 ]

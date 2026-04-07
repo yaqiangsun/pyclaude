@@ -1,7 +1,8 @@
 """Memory directory module."""
+from __future__ import annotations
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 ENTRYPOINT_NAME = 'MEMORY.md'
 MAX_ENTRYPOINT_LINES = 200
@@ -87,7 +88,7 @@ async def ensure_memory_dir_exists(memory_dir: str) -> None:
 def build_memory_lines(
     display_name: str,
     memory_dir: str,
-    extra_guidelines: list[str] | None = None,
+    extra_guidelines: Optional[list[str]] = None,
     skip_index: bool = False,
 ) -> list[str]:
     """Build the typed-memory behavioral instructions."""
@@ -110,7 +111,7 @@ def build_memory_lines(
 def build_memory_prompt(
     display_name: str,
     memory_dir: str,
-    extra_guidelines: list[str] | None = None,
+    extra_guidelines: Optional[list[str]] = None,
 ) -> str:
     """Build the typed-memory prompt with MEMORY.md content."""
     entrypoint_path = os.path.join(memory_dir, ENTRYPOINT_NAME)
@@ -137,7 +138,7 @@ def build_memory_prompt(
     return '\n'.join(lines)
 
 
-async def load_memory_prompt() -> str | None:
+async def load_memory_prompt() -> Optional[str]:
     """Load the unified memory prompt."""
     if not is_memdir_enabled():
         return None
