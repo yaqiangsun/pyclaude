@@ -335,21 +335,41 @@ def show_welcome_banner() -> None:
     cwd = os.getcwd()
     cwd_short = cwd if len(cwd) <= 40 else '~' + cwd[-39:]
 
-    # Welcome banner with ASCII art - matching src format
-    click.echo(f"╭─── {product} {version} ──────────────────────────────────────────────────────────────────────────────────────────╮")
-    click.echo(f"│                                                    │ Tips for getting started                                    │")
-    click.echo(f"│                    Welcome back!                   │ {tips_lines[0][:60]}                    │")
-    click.echo(f"│                                                    │ {tips_lines[1] if len(tips_lines) > 1 else ''}                       │")
-    click.echo(f"│                       ▐▛███▜▌                      │ {tips_lines[2] if len(tips_lines) > 2 else ''}                       │")
-    click.echo(f"│                      ▝▜█████▛▘                     │                                                             │")
-    click.echo(f"│                        ▘▘ ▝▝                       │ Recent activity                                             │")
-    click.echo(f"│                                                    │ {activity_lines[0][:60]}                    │")
-    click.echo(f"│                                                    │ {activity_lines[1][:60] if len(activity_lines) > 1 else ''}                       │")
-    click.echo(f"│                                                    │ {activity_lines[2][:60] if len(activity_lines) > 2 else ''}                       │")
-    click.echo(f"│                                                    │                                                             │")
-    click.echo(f"│ {model[:55]:<57} │ /resume for more                                     │")
-    click.echo(f"│            {cwd_short:<40}             │                                                             │")
-    click.echo("╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯")
+    # Fixed width: 122 chars per line (52 + 67 + 3 for │ chars)
+    W = 122
+    # DIV is where the first │ appears (52 chars of content on left)
+    DIV = 52
+
+    # Left side width = DIV (52 chars), right side = W - DIV - 1 (67 chars)
+    LEFT_W = DIV
+    RIGHT_W = W - DIV - 1
+
+    # Simple pad using character count
+    def pad(s: str, w: int) -> str:
+        return s[:w] + ' ' * max(0, w - len(s)) if s else ' ' * w
+
+    def make_line(left: str, right: str = "") -> str:
+        """Make a full line with left and right content."""
+        left_padded = pad(left, LEFT_W)
+        right_padded = pad(right, RIGHT_W)
+        return f"│{left_padded}│{right_padded}│"
+
+    # Welcome banner
+    title = f"╭─── {product} {version} "
+    click.echo(title + "─" * (W - len(title) - 1) + "╮")
+    click.echo(make_line("", "Tips for getting started"))
+    click.echo(make_line("     Welcome back!", tips_lines[0] if tips_lines else ""))
+    click.echo(make_line("", tips_lines[1] if len(tips_lines) > 1 else ""))
+    click.echo(make_line("  ▐▛███▜▌", tips_lines[2] if len(tips_lines) > 2 else ""))
+    click.echo(make_line(" ▝▜█████▛▘", ""))
+    click.echo(make_line("   ▘▘ ▝▝", "Recent activity"))
+    click.echo(make_line("", activity_lines[0] if activity_lines else ""))
+    click.echo(make_line("", activity_lines[1] if len(activity_lines) > 1 else ""))
+    click.echo(make_line("", activity_lines[2] if len(activity_lines) > 2 else ""))
+    click.echo(make_line("", ""))
+    click.echo(make_line(f" {model[:LEFT_W-3]}", "/resume for more"))
+    click.echo(make_line(f"            {cwd_short}", ""))
+    click.echo("╰" + "─" * (W - 2) + "╯")
 
 
 def show_command_suggestions(partial: str) -> None:
