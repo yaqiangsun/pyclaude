@@ -11,6 +11,7 @@ from .query_engine import QueryEngine, QueryEngineConfig
 from .state import AppState, get_app_state, set_app_state
 from .tool import Tool, ToolDefinition, ToolType, ToolResult
 from .commands import AVAILABLE_COMMANDS, COMMANDS, get_command_description
+from .skills import bundled
 
 __all__ = [
     '__version__',
