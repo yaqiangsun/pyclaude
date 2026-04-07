@@ -1,6 +1,6 @@
 """Plugins command - manage plugins.
 
-Matches src/commands/plugin/parseArgs.ts command structure:
+Matches src/cli/handlers/plugins.ts command structure:
 - install/i
 - uninstall
 - enable
@@ -8,12 +8,39 @@ Matches src/commands/plugin/parseArgs.ts command structure:
 - validate
 - marketplace (add/remove/update/list)
 """
-
-import os
+import asyncio
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
+# Import from the new services
+from pyclaude.services.plugins import schemas as plugin_schemas
+from pyclaude.services.plugins.installed_plugins_manager import (
+    load_installed_plugins_from_disk,
+)
+from pyclaude.services.plugins.marketplace_manager import (
+    add_marketplace_source,
+    get_marketplace,
+    load_known_marketplaces_config,
+    refresh_all_marketplaces,
+    refresh_marketplace,
+    remove_marketplace_source,
+)
+from pyclaude.services.plugins.plugin_operations import (
+    disable_all_plugins_op,
+    disable_plugin_op,
+    enable_plugin_op,
+    install_plugin_op,
+    uninstall_plugin_op,
+    update_plugin_op,
+    VALID_INSTALLABLE_SCOPES,
+)
+from pyclaude.services.plugins.plugin_identifier import parse_plugin_identifier
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
 
 PLUGINS_DIR = Path.home() / '.claude' / 'plugins'
 KNOWN_MARKETPLACES_FILE = PLUGINS_DIR / 'known_marketplaces.json'
@@ -33,22 +60,45 @@ def get_marketplaces_cache_dir() -> Path:
 
 
 def load_known_marketplaces() -> Dict[str, Any]:
-    """Load known marketplaces configuration."""
-    if KNOWN_MARKETPLACES_FILE.exists():
-        try:
-            with open(KNOWN_MARKETPLACES_FILE) as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return {}
+    """Load known marketplaces configuration (sync wrapper)."""
+    try:
+        return asyncio.run(load_known_marketplaces_config())
+    except Exception:
+        return {}
 
 
 def save_known_marketplaces(data: Dict[str, Any]) -> None:
-    """Save known marketplaces configuration."""
+    """Save known marketplaces configuration (sync wrapper)."""
     get_plugins_dir()
     with open(KNOWN_MARKETPLACES_FILE, 'w') as f:
         json.dump(data, f, indent=2)
 
+
+def format_source_for_display(source: Dict[str, Any]) -> str:
+    """Format a MarketplaceSource for display."""
+    source_type = source.get('source', '')
+    if source_type == 'github':
+        repo = source.get('repo', '')
+        ref = source.get('ref', '')
+        return f"github:{repo}{('@' + ref) if ref else ''}"
+    elif source_type == 'url':
+        return source.get('url', '')
+    elif source_type == 'git':
+        url = source.get('url', '')
+        ref = source.get('ref', '')
+        return f"git:{url}{('@' + ref) if ref else ''}"
+    elif source_type == 'npm':
+        return f"npm:{source.get('package', '')}"
+    elif source_type == 'file':
+        return f"file:{source.get('path', '')}"
+    elif source_type == 'directory':
+        return f"dir:{source.get('path', '')}"
+    return 'unknown source'
+
+
+# ============================================================================
+# Argument Parsing
+# ============================================================================
 
 def parse_plugin_args(args: str) -> Dict[str, Any]:
     """Parse plugin subcommand arguments into structured commands.
@@ -99,7 +149,14 @@ def parse_plugin_args(args: str) -> Dict[str, Any]:
         return {'type': 'enable', 'plugin': parts[1] if len(parts) > 1 else None}
 
     if command == 'disable':
+        # Handle --all flag
+        has_all = '--all' in parts or '-a' in parts
+        if has_all:
+            return {'type': 'disable', 'all': True}
         return {'type': 'disable', 'plugin': parts[1] if len(parts) > 1 else None}
+
+    if command == 'update':
+        return {'type': 'update', 'plugin': parts[1] if len(parts) > 1 else None}
 
     if command == 'validate':
         target = ' '.join(parts[1:]).strip() if len(parts) > 1 else None
@@ -119,31 +176,17 @@ def parse_plugin_args(args: str) -> Dict[str, Any]:
             return {'type': 'marketplace', 'action': 'list'}
         return {'type': 'marketplace'}
 
+    if command == 'list':
+        # Handle list command
+        return {'type': 'list'}
+
     # Unknown command, show menu
     return {'type': 'menu'}
 
 
-def format_source_for_display(source: Dict[str, Any]) -> str:
-    """Format a MarketplaceSource for display."""
-    source_type = source.get('source', '')
-    if source_type == 'github':
-        repo = source.get('repo', '')
-        ref = source.get('ref', '')
-        return f"github:{repo}{('@' + ref) if ref else ''}"
-    elif source_type == 'url':
-        return source.get('url', '')
-    elif source_type == 'git':
-        url = source.get('url', '')
-        ref = source.get('ref', '')
-        return f"git:{url}{('@' + ref) if ref else ''}"
-    elif source_type == 'npm':
-        return f"npm:{source.get('package', '')}"
-    elif source_type == 'file':
-        return f"file:{source.get('path', '')}"
-    elif source_type == 'directory':
-        return f"dir:{source.get('path', '')}"
-    return 'unknown source'
-
+# ============================================================================
+# Main Execute Function
+# ============================================================================
 
 async def execute(args: str, context: Dict[str, Any]) -> Dict[str, Any]:
     """Execute the plugins command."""
@@ -157,6 +200,9 @@ async def execute(args: str, context: Dict[str, Any]) -> Dict[str, Any]:
     if cmd_type == 'menu':
         return await show_plugin_menu()
 
+    if cmd_type == 'list':
+        return await list_plugins()
+
     if cmd_type == 'install':
         return await install_plugin(parsed.get('plugin'), parsed.get('marketplace'))
 
@@ -167,7 +213,12 @@ async def execute(args: str, context: Dict[str, Any]) -> Dict[str, Any]:
         return await enable_plugin(parsed.get('plugin'))
 
     if cmd_type == 'disable':
+        if parsed.get('all'):
+            return await disable_all_plugins()
         return await disable_plugin(parsed.get('plugin'))
+
+    if cmd_type == 'update':
+        return await update_plugin(parsed.get('plugin'))
 
     if cmd_type == 'validate':
         return await validate_plugin(parsed.get('path'))
@@ -177,6 +228,10 @@ async def execute(args: str, context: Dict[str, Any]) -> Dict[str, Any]:
 
     return show_help()
 
+
+# ============================================================================
+# Help
+# ============================================================================
 
 def show_help() -> Dict[str, Any]:
     """Show help message."""
@@ -188,93 +243,89 @@ Commands:
   uninstall <plugin>         Uninstall a plugin
   enable <plugin>            Enable a plugin
   disable <plugin>           Disable a plugin
+  disable --all              Disable all plugins
+  update <plugin>            Update a plugin to latest version
   validate [path]            Validate a plugin
+  list                       List installed plugins
   marketplace add <source>   Add a marketplace
   marketplace remove <name>  Remove a marketplace
   marketplace list           List configured marketplaces
   marketplace update         Update all marketplaces
+  marketplace update <name>  Update specific marketplace
 
 Alias: /plugin, /marketplace
 '''}
 
 
+# ============================================================================
+# Plugin Menu / List
+# ============================================================================
+
 async def show_plugin_menu() -> Dict[str, Any]:
     """Show the plugin menu (installed plugins)."""
-    # First show installed plugins
     plugins_result = await list_installed_plugins()
-
-    # Then show configured marketplaces
     marketplace_result = await list_marketplaces()
 
     lines = []
 
-    # Add plugins section
     if plugins_result.get('type') == 'text':
         lines.append(plugins_result['value'])
         lines.append('')
 
-    # Add marketplaces section
     if marketplace_result.get('type') == 'text':
         lines.append(marketplace_result['value'])
 
     return {'type': 'text', 'value': '\n'.join(lines)}
 
 
+async def list_plugins() -> Dict[str, Any]:
+    """List all plugins (installed)."""
+    return await list_installed_plugins()
+
+
 async def list_installed_plugins() -> Dict[str, Any]:
-    """List installed plugins from marketplaces cache."""
-    cache_dir = get_marketplaces_cache_dir()
-    plugins = []
-
-    if cache_dir.exists():
-        for marketplace_dir in cache_dir.iterdir():
-            if marketplace_dir.is_dir():
-                marketplace_name = marketplace_dir.name
-
-                # Look for marketplace.json to get plugin list
-                marketplace_json = marketplace_dir / 'marketplace.json'
-                if marketplace_json.exists():
-                    try:
-                        with open(marketplace_json) as f:
-                            data = json.load(f)
-                            for plugin in data.get('plugins', []):
-                                plugins.append({
-                                    'name': plugin.get('name', ''),
-                                    'version': plugin.get('version', 'unknown'),
-                                    'marketplace': marketplace_name,
-                                    'description': plugin.get('description', ''),
-                                })
-                    except Exception:
-                        pass
-                else:
-                    # Fallback: list any .json files in marketplace dir
-                    for f in marketplace_dir.glob('*.json'):
-                        try:
-                            with open(f) as fp:
-                                data = json.load(fp)
-                                plugins.append({
-                                    'name': f.stem,
-                                    'version': data.get('version', 'unknown'),
-                                    'marketplace': marketplace_name,
-                                    'description': data.get('description', ''),
-                                })
-                        except Exception:
-                            pass
+    """List installed plugins."""
+    data = load_installed_plugins_from_disk()
+    plugins = data.get('plugins', {})
 
     if not plugins:
         return {'type': 'text', 'value': 'No plugins installed.\n\nUse /plugins install <plugin> to install a plugin.'}
 
     lines = ['Installed plugins:', '']
-    for p in plugins:
-        lines.append(f'  • {p["name"]} (v{p["version"]}) - {p["marketplace"]}')
-        if p.get('description'):
-            lines.append(f'    {p["description"]}')
+
+    # Load settings to check enabled state
+    settings_file = Path.home() / '.claude' / 'settings.json'
+    enabled_plugins = {}
+    if settings_file.exists():
+        try:
+            with open(settings_file) as f:
+                settings = json.load(f)
+                enabled_plugins = settings.get('enabledPlugins', {})
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    for plugin_id, installations in sorted(plugins.items()):
+        if not installations:
+            continue
+
+        installation = installations[0]  # Show first installation
+        is_enabled = plugin_id in enabled_plugins
+        version = installation.get('version', 'unknown')
+        scope = installation.get('scope', 'user')
+        status = 'enabled' if is_enabled else 'disabled'
+
+        lines.append(f'  • {plugin_id}')
+        lines.append(f'    Version: {version}')
+        lines.append(f'    Scope: {scope}')
+        lines.append(f'    Status: {status}')
+        lines.append('')
 
     return {'type': 'text', 'value': '\n'.join(lines)}
 
 
 async def list_marketplaces() -> Dict[str, Any]:
     """List configured marketplaces."""
-    marketplaces = load_known_marketplaces()
+    marketplaces = await load_known_marketplaces_config()
 
     if not marketplaces:
         return {'type': 'text', 'value': 'No marketplaces configured.\n\nUse /plugins marketplace add <source> to add a marketplace.'}
@@ -289,18 +340,31 @@ async def list_marketplaces() -> Dict[str, Any]:
     return {'type': 'text', 'value': '\n'.join(lines)}
 
 
+# ============================================================================
+# Plugin Operations
+# ============================================================================
+
 async def install_plugin(plugin: Optional[str] = None, marketplace: Optional[str] = None) -> Dict[str, Any]:
     """Install a plugin."""
     if not plugin and not marketplace:
         return {'type': 'text', 'value': 'Usage: /plugins install <plugin>[@<marketplace>]'}
 
+    # If marketplace is specified without plugin, treat as marketplace add
+    if marketplace and not plugin:
+        return await add_marketplace(marketplace)
+
+    # Build plugin identifier
     if marketplace:
-        return {'type': 'text', 'value': f'Installing {plugin or "marketplace"} from {marketplace}... (not implemented)'}
+        plugin_id = f"{plugin}@{marketplace}"
+    else:
+        plugin_id = plugin
 
-    if plugin:
-        return {'type': 'text', 'value': f'Installing plugin: {plugin}... (not implemented)'}
+    result = await install_plugin_op(plugin_id, scope='user')
 
-    return show_help()
+    if result.success:
+        return {'type': 'text', 'value': f'Successfully installed plugin: {result.plugin_id}'}
+    else:
+        return {'type': 'text', 'value': f'Failed to install plugin: {result.message}'}
 
 
 async def uninstall_plugin(plugin: Optional[str]) -> Dict[str, Any]:
@@ -308,8 +372,12 @@ async def uninstall_plugin(plugin: Optional[str]) -> Dict[str, Any]:
     if not plugin:
         return {'type': 'text', 'value': 'Usage: /plugins uninstall <plugin>'}
 
-    # TODO: Implement actual uninstall
-    return {'type': 'text', 'value': f'Uninstalling plugin: {plugin}... (not implemented)'}
+    result = await uninstall_plugin_op(plugin, scope='user')
+
+    if result.success:
+        return {'type': 'text', 'value': result.message}
+    else:
+        return {'type': 'text', 'value': f'Failed to uninstall plugin: {result.message}'}
 
 
 async def enable_plugin(name: Optional[str]) -> Dict[str, Any]:
@@ -317,8 +385,12 @@ async def enable_plugin(name: Optional[str]) -> Dict[str, Any]:
     if not name:
         return {'type': 'text', 'value': 'Usage: /plugins enable <plugin>'}
 
-    # TODO: Implement actual enable
-    return {'type': 'text', 'value': f'Enabling plugin: {name}... (not implemented)'}
+    result = await enable_plugin_op(name)
+
+    if result.success:
+        return {'type': 'text', 'value': result.message}
+    else:
+        return {'type': 'text', 'value': f'Failed to enable plugin: {result.message}'}
 
 
 async def disable_plugin(name: Optional[str]) -> Dict[str, Any]:
@@ -326,8 +398,37 @@ async def disable_plugin(name: Optional[str]) -> Dict[str, Any]:
     if not name:
         return {'type': 'text', 'value': 'Usage: /plugins disable <plugin>'}
 
-    # TODO: Implement actual disable
-    return {'type': 'text', 'value': f'Disabling plugin: {name}... (not implemented)'}
+    result = await disable_plugin_op(name)
+
+    if result.success:
+        return {'type': 'text', 'value': result.message}
+    else:
+        return {'type': 'text', 'value': f'Failed to disable plugin: {result.message}'}
+
+
+async def disable_all_plugins() -> Dict[str, Any]:
+    """Disable all plugins."""
+    result = await disable_all_plugins_op()
+
+    if result.success:
+        return {'type': 'text', 'value': result.message}
+    else:
+        return {'type': 'text', 'value': f'Failed to disable plugins: {result.message}'}
+
+
+async def update_plugin(plugin: Optional[str]) -> Dict[str, Any]:
+    """Update a plugin."""
+    if not plugin:
+        return {'type': 'text', 'value': 'Usage: /plugins update <plugin>'}
+
+    result = await update_plugin_op(plugin, scope='user')
+
+    if result.success:
+        if result.already_up_to_date:
+            return {'type': 'text', 'value': result.message}
+        return {'type': 'text', 'value': result.message}
+    else:
+        return {'type': 'text', 'value': f'Failed to update plugin: {result.message}'}
 
 
 async def validate_plugin(path: Optional[str]) -> Dict[str, Any]:
@@ -335,8 +436,54 @@ async def validate_plugin(path: Optional[str]) -> Dict[str, Any]:
     if not path:
         return {'type': 'text', 'value': 'Usage: /plugins validate <path>'}
 
-    return {'type': 'text', 'value': f'Validating plugin at {path}... (not implemented)'}
+    plugin_path = Path(path)
 
+    if not plugin_path.exists():
+        return {'type': 'text', 'value': f'Path does not exist: {path}'}
+
+    # Look for plugin.json or .claude-plugin/plugin.json
+    manifest_paths = [
+        plugin_path / '.claude-plugin' / 'plugin.json',
+        plugin_path / 'plugin.json',
+    ]
+
+    for manifest_path in manifest_paths:
+        if manifest_path.exists():
+            try:
+                with open(manifest_path) as f:
+                    manifest = json.load(f)
+
+                # Validate required fields
+                name = manifest.get('name')
+                if not name:
+                    return {'type': 'text', 'value': 'Validation failed: plugin name is required'}
+
+                errors = []
+                warnings = []
+
+                if ' ' in name:
+                    errors.append('Plugin name cannot contain spaces')
+
+                if not manifest.get('version'):
+                    warnings.append('Plugin version is not specified')
+
+                if errors:
+                    return {'type': 'text', 'value': f"Validation failed:\n  - " + "\n  - ".join(errors)}
+
+                msg = f"Validation passed for: {name}"
+                if warnings:
+                    msg += f"\nWarnings:\n  - " + "\n  - ".join(warnings)
+
+                return {'type': 'text', 'value': msg}
+            except json.JSONDecodeError as e:
+                return {'type': 'text', 'value': f'Invalid JSON in manifest: {e}'}
+
+    return {'type': 'text', 'value': 'No plugin manifest found (expected plugin.json or .claude-plugin/plugin.json)'}
+
+
+# ============================================================================
+# Marketplace Operations
+# ============================================================================
 
 async def handle_marketplace(action: Optional[str], target: Optional[str]) -> Dict[str, Any]:
     """Handle marketplace subcommands."""
@@ -350,7 +497,9 @@ async def handle_marketplace(action: Optional[str], target: Optional[str]) -> Di
         return await remove_marketplace(target)
 
     if action == 'update':
-        return await update_marketplaces()
+        if target:
+            return await update_marketplace(target)
+        return await update_all_marketplaces()
 
     return {'type': 'text', 'value': '''Usage: /plugins marketplace [command]
 
@@ -359,6 +508,7 @@ Commands:
   marketplace remove <name>   Remove a marketplace
   marketplace list            List configured marketplaces
   marketplace update          Update all marketplaces
+  marketplace update <name>   Update specific marketplace
 '''}
 
 
@@ -369,40 +519,31 @@ async def add_marketplace(source: Optional[str]) -> Dict[str, Any]:
 
     # Parse source type
     if source.startswith('http://') or source.startswith('https://'):
-        config = {'source': {'source': 'url', 'url': source}}
+        config = {'source': 'url', 'url': source}
     elif source.startswith('github:'):
         repo = source[7:]  # Remove 'github:' prefix
-        config = {'source': {'source': 'github', 'repo': repo}}
+        config = {'source': 'github', 'repo': repo}
     elif source.startswith('npm:'):
         package = source[4:]  # Remove 'npm:' prefix
-        config = {'source': {'source': 'npm', 'package': package}}
+        config = {'source': 'npm', 'package': package}
     elif source.startswith('git:'):
         url = source[4:]  # Remove 'git:' prefix
-        config = {'source': {'source': 'git', 'url': url}}
+        config = {'source': 'git', 'url': url}
     elif source.startswith('dir:') or source.startswith('directory:'):
         path = source.split(':', 1)[1]
-        config = {'source': {'source': 'directory', 'path': path}}
+        config = {'source': 'directory', 'path': path}
     elif source.startswith('file:'):
         path = source[5:]
-        config = {'source': {'source': 'file', 'path': path}}
+        config = {'source': 'file', 'path': path}
     else:
         return {'type': 'text', 'value': f'Unknown source type: {source}'}
 
-    # Generate marketplace name from source
-    if config['source']['source'] == 'github':
-        name = config['source']['repo'].split('/')[-1]
-    elif config['source']['source'] == 'url':
-        from urllib.parse import urlparse
-        parsed = urlparse(config['source']['url'])
-        name = parsed.netloc.replace('.', '_')
-    else:
-        name = config['source'].get('package', config['source'].get('path', 'unknown'))
+    try:
+        name, already_materialized, resolved = await add_marketplace_source(config)
 
-    marketplaces = load_known_marketplaces()
-    marketplaces[name] = config
-    save_known_marketplaces(marketplaces)
-
-    return {'type': 'text', 'value': f'Added marketplace: {name}\n  Source: {format_source_for_display(config["source"])}'}
+        return {'type': 'text', 'value': f'Successfully added marketplace: {name}'}
+    except Exception as e:
+        return {'type': 'text', 'value': f'Failed to add marketplace: {str(e)}'}
 
 
 async def remove_marketplace(name: Optional[str]) -> Dict[str, Any]:
@@ -410,29 +551,37 @@ async def remove_marketplace(name: Optional[str]) -> Dict[str, Any]:
     if not name:
         return {'type': 'text', 'value': 'Usage: /plugins marketplace remove <name>'}
 
-    marketplaces = load_known_marketplaces()
-
-    if name not in marketplaces:
-        return {'type': 'text', 'value': f'Marketplace "{name}" not found.'}
-
-    del marketplaces[name]
-    save_known_marketplaces(marketplaces)
-
-    return {'type': 'text', 'value': f'Removed marketplace: {name}'}
+    try:
+        await remove_marketplace_source(name)
+        return {'type': 'text', 'value': f'Successfully removed marketplace: {name}'}
+    except Exception as e:
+        return {'type': 'text', 'value': f'Failed to remove marketplace: {str(e)}'}
 
 
-async def update_marketplaces() -> Dict[str, Any]:
+async def update_marketplace(name: str) -> Dict[str, Any]:
+    """Update a specific marketplace."""
+    try:
+        await refresh_marketplace(name)
+        return {'type': 'text', 'value': f'Successfully updated marketplace: {name}'}
+    except Exception as e:
+        return {'type': 'text', 'value': f'Failed to update marketplace: {str(e)}'}
+
+
+async def update_all_marketplaces() -> Dict[str, Any]:
     """Update all marketplaces."""
-    marketplaces = load_known_marketplaces()
+    try:
+        await refresh_all_marketplaces()
+        config = await load_known_marketplaces_config()
+        count = len(config)
+        return {'type': 'text', 'value': f'Successfully updated {count} marketplace(s)'}
+    except Exception as e:
+        return {'type': 'text', 'value': f'Failed to update marketplaces: {str(e)}'}
 
-    if not marketplaces:
-        return {'type': 'text', 'value': 'No marketplaces to update.'}
 
-    # TODO: Implement actual marketplace update
-    return {'type': 'text', 'value': f'Updating {len(marketplaces)} marketplace(s)... (not implemented)'}
+# ============================================================================
+# Command Metadata
+# ============================================================================
 
-
-# Command metadata
 CONFIG = {
     'type': 'local',
     'name': 'plugins',
