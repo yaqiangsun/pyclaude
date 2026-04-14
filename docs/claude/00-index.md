@@ -21,7 +21,8 @@ docs/claude/
 ├── 10-skills-system.md  # 技能系统
 ├── 11-components.md     # React 组件系统
 ├── 12-context-state.md  # Context 和 State
-└── 13-additional-modules.md  # 其他模块 (Ink/Buddy/Coordinator)
+├── 13-additional-modules.md  # 其他模块 (Ink/Buddy/Coordinator)
+└── 14-input-system.md   # 输入系统 (Keybindings/Vim/Server)
 ```
 
 ---
@@ -381,14 +382,19 @@ docs/claude/
 | `NotificationManager` | 12-context-state.md | `class` |
 | `ClaudePlugin` | 12-context-state.md | `Protocol` |
 | `Screen` | 13-additional-modules.md | `class` |
+| `KeybindingManager` | 14-input-system.md | `class` |
+| `VimState` | 14-input-system.md | `dataclass` |
+| `VimEngine` | 14-input-system.md | `class` |
+| `ServerConfig` | 14-input-system.md | `dataclass` |
+| `SessionInfo` | 14-input-system.md | `dataclass` |
 
 ---
 
 ## 建议阅读顺序
 
-1. **初学者**: 01 → 02 → 06 → 10 → 11 → 03 → 04 → 05 → 07 → 08 → 09 → 12 → 13
+1. **初学者**: 01 → 02 → 06 → 10 → 11 → 14 → 03 → 04 → 05 → 07 → 08 → 09 → 12 → 13
 2. **有经验者**: 直接查看感兴趣的部分
-3. **Python 实现**: 重点参考 02-core-modules.md、06-tools-implementation.md、10-skills-system.md、11-components.md 和模块依赖关系
+3. **Python 实现**: 重点参考 02-core-modules.md、06-tools-implementation.md、10-skills-system.md、11-components.md、14-input-system.md 和模块依赖关系
 
 > **新增文档说明**:
 > - 06: 工具实现（45 个内置工具）
@@ -399,6 +405,7 @@ docs/claude/
 > - 11: React 组件系统（144 个组件）
 > - 12: Context 和 State（Provider 模式、统计、通知）
 > - 13: 其他模块（Ink 框架、Buddy 队友、Coordinator 协调者）
+> - 14: 输入系统（Keybindings 快捷键、Vim 模式、Server 直连）
 
 ---
 
@@ -412,5 +419,5 @@ docs/claude/
 
 ---
 
-*文档版本: 1.2*
-*最后更新: 2026-04-11*
+*文档版本: 1.3*
+*最后更新: 2026-04-14*
