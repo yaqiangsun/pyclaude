@@ -23,7 +23,8 @@ docs/claude/
 ├── 12-context-state.md  # Context 和 State
 ├── 13-additional-modules.md  # 其他模块 (Ink/Buddy/Coordinator)
 ├── 14-input-system.md   # 输入系统 (Keybindings/Vim/Server)
-└── 15-remaining-modules.md  # 剩余模块 (Bootstrap/Memdir/Remote/Types)
+├── 15-remaining-modules.md  # 剩余模块 (Bootstrap/Memdir/Remote/Types)
+└── 16-root-level-files.md   # 根目录文件 (cost-tracker/onboarding/dialogs)
 ```
 
 ---
@@ -394,14 +395,18 @@ docs/claude/
 | `PromptCommand` | 15-remaining-modules.md | `dataclass` |
 | `LocalCommand` | 15-remaining-modules.md | `dataclass` |
 | `ChannelEntry` | 15-remaining-modules.md | `dataclass` |
+| `CostTracker` | 16-root-level-files.md | `class` |
+| `ModelUsage` | 16-root-level-files.md | `dataclass` |
+| `ProjectOnboarding` | 16-root-level-files.md | `class` |
+| `OnboardingStep` | 16-root-level-files.md | `dataclass` |
 
 ---
 
 ## 建议阅读顺序
 
-1. **初学者**: 01 → 02 → 06 → 10 → 11 → 14 → 15 → 03 → 04 → 05 → 07 → 08 → 09 → 12 → 13
+1. **初学者**: 01 → 02 → 06 → 10 → 11 → 14 → 15 → 16 → 03 → 04 → 05 → 07 → 08 → 09 → 12 → 13
 2. **有经验者**: 直接查看感兴趣的部分
-3. **Python 实现**: 重点参考 02-core-modules.md、06-tools-implementation.md、10-skills-system.md、11-components.md、14-input-system.md、15-remaining-modules.md 和模块依赖关系
+3. **Python 实现**: 重点参考 02-core-modules.md、06-tools-implementation.md、10-skills-system.md、11-components.md、14-input-system.md、15-remaining-modules.md、16-root-level-files.md 和模块依赖关系
 
 > **新增文档说明**:
 > - 06: 工具实现（45 个内置工具）
@@ -414,6 +419,7 @@ docs/claude/
 > - 13: 其他模块（Ink 框架、Buddy 队友、Coordinator 协调者）
 > - 14: 输入系统（Keybindings 快捷键、Vim 模式、Server 直连）
 > - 15: 剩余模块（Bootstrap、Memdir 记忆、Remote 远程、Types 类型定义）
+> - 16: 根目录文件（cost-tracker 成本追踪、projectOnboarding 项目引导、dialogLaunchers 对话框启动器）
 
 ---
 
