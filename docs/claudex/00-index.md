@@ -32,6 +32,9 @@
 - [15-启动流程](./15-startup.md) - 初始化流程
 - [16-其他模块](./16-additional.md) - Buddy、Coordinator、Memdir
 
+### 开发规范
+- [17-代码规范](./17-coding-standards.md) - 项目结构、代码风格、测试规范、示例代码
+
 ## 与 TypeScript 版本对应关系
 
 | TypeScript | Python 实现 |
